@@ -80,7 +80,7 @@ class SqlServer:
         }
         stages = cur.execute(f"SELECT * FROM INTERVIEWSTAGES WHERE POSITIONID={position[7]}").fetchall()
         stages.sort(key=lambda x: x[2])
-        stages = map(lambda x: {'type': x[3], "status": x[4], 'comment': x[5], "date": x[6]}, stages)
+        stages = map(lambda x: {'stage_id': x[0], 'type': x[3], "status": x[4], 'comment': x[5], "date": x[6]}, stages)
         curr_pos['interview_stages'] = list(stages)
         return curr_pos
 
@@ -172,7 +172,6 @@ class SqlServer:
 
         finally:
             return result
-
 
 
     def add_position(self, **kwargs):
