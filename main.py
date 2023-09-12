@@ -2,6 +2,7 @@ from flask import Flask
 from flask import request, jsonify
 from sql_server.sql_server import SqlServer, DB_NAME
 from flask_cors import CORS, cross_origin
+from parsing.parser import get_vacancy
 
 app = Flask(__name__)
 cors = CORS(app)
@@ -92,5 +93,22 @@ def delete_position_by_id(position_id):
     except:
         return jsonify(isError=True,
                        data={},
+                       message="Error",
+                       statusCode=200), 200
+
+
+@app.route('/parse_vacancy', methods=['POST'])
+@cross_origin()
+def parse_vacancy():
+    try:
+        data = request.json
+        print(data)
+        vacancy = get_vacancy(data['url'])
+        return jsonify(isError=False,
+                       data=vacancy,
+                       message="Success",
+                       statusCode=200), 200
+    except:
+        return jsonify(isError=True,
                        message="Error",
                        statusCode=200), 200
