@@ -35,8 +35,8 @@ def get_last_six_months():
     return last_six_months
 
 
-for i in get_last_six_months():
-    print(i)
+# for i in get_last_six_months():
+#     print(i)
 # today = datetime.date.today()
 # print(today)
 # print(first_day_of_month(today))

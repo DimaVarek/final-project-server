@@ -1,5 +1,8 @@
 import datetime
 import sqlite3
+import sys
+# sys.path.append("date_worker")
+from date_worker.date_worker import get_last_six_months
 DB_NAME = "position_db.db"
 CREATE_POSITIONS = '''CREATE TABLE POSITIONS
                     (ID INT PRIMARY KEY     NOT NULL,
@@ -233,9 +236,23 @@ class SqlServer:
             })
         return result_stages
 
-    # def statistic_applications_last_six_months(self, owner_id):
-    #     today = datetime.date.today()
-    #     last_day_this_month_timestamp = datetime.date(today.y)
+    def statistic_applications_last_six_months(self, owner_id=1):
+        con = self.connect()
+        cur = con.cursor()
+        last_six_months_stat = []
+        sql_request = '''SELECT COUNT(*) FROM POSITIONS
+                         WHERE STARTDATE >= ? AND STARTDATE <= ? AND OWNERID = ?'''
+        stats_dates = get_last_six_months()
+        for month_id in range(len(stats_dates)):
+            cur.execute(sql_request, (stats_dates[month_id][1], stats_dates[month_id][2], owner_id))
+            last_six_months_stat.append({
+                'id': month_id + 1,
+                'month': stats_dates[month_id][0],
+                'applications': cur.fetchall()[0][0]
+            })
+
+        return last_six_months_stat
+
 
 
 

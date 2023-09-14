@@ -3,6 +3,7 @@ from flask import request, jsonify
 from sql_server.sql_server import SqlServer, DB_NAME
 from flask_cors import CORS, cross_origin
 from parsing.parser import get_vacancy
+from fake_stats.fake_stats import FAKE_STATS
 
 app = Flask(__name__)
 cors = CORS(app)
@@ -180,6 +181,28 @@ def get_stages_by_period():
         stages = server.get_stages_from_range(start_interval, end_interval)
         return jsonify(isError=False,
                        data=stages,
+                       message="Success",
+                       statusCode=200), 200
+    except:
+        return jsonify(isError=True,
+                       message="Error",
+                       statusCode=200), 200
+
+
+@app.route('/statistic', methods=['GET'])
+@cross_origin()
+def statistic():
+    try:
+        stat_type = request.args.get('stat_type', default='application_last_six_months')
+        fake_stat = request.args.get('fake_stat', default='false')
+        stat = []
+        if fake_stat == 'true':
+            stat = FAKE_STATS[stat_type]
+        else:
+            if stat_type == 'application_last_six_months':
+                stat = server.statistic_applications_last_six_months()
+        return jsonify(isError=False,
+                       data=stat,
                        message="Success",
                        statusCode=200), 200
     except:
