@@ -36,9 +36,3 @@ def parse_description(description_row):
 def cut(company_name: str):
     return company_name.replace('\n', "").strip()
 
-
-
-
-
-vacancy = get_vacancy("https://www.linkedin.com/jobs/view/3698329431/?alternateChannel=search&refId=aO%2FUcO3hTA7%2FG824miKmeQ%3D%3D&trackingId=4QHQSFCrHKBFuCNrrmld8g%3D%3D")
-print(vacancy["description"])

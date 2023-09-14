@@ -5,12 +5,11 @@ CREATE_POSITIONS = '''CREATE TABLE POSITIONS
                     (ID INT PRIMARY KEY     NOT NULL,
                     OWNERID         INT     NOT NULL,
                     POSITIONLINK    TEXT    NOT NULL,
-                    STARTDATE       TEXT    NOT NULL,
-                    CHANGEDATE      TEXT    NOT NULL,
                     COMPANYNAME     TEXT    NOT NULL,
                     POSITIONNAME    TEXT    NOT NULL,
-                    INTERVIEWID     INT     NOT NULL,
-                    DESCCRIPTIONID  INT     NOT NULL);'''
+                    COMPANYIMAGE    TEXT    NOT NULL,
+                    STARTDATE       INT     NOT NULL,
+                    CHANGEDATE      INT     NOT NULL);'''
 
 CREATE_INTERVIEWSTAGES = '''CREATE TABLE INTERVIEWSTAGES
                     (ID INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL,
@@ -19,11 +18,32 @@ CREATE_INTERVIEWSTAGES = '''CREATE TABLE INTERVIEWSTAGES
                     INTERVIEWTYPE   INT     NOT NULL,
                     INTERVIEWSTATUS INT     NOT NULL,
                     COMMENT         TEXT    NOT NULL,
-                    DATE            TEXT);'''
+                    DATE            INT);'''
 
 CREATE_DESCRIPTIONS = '''CREATE TABLE DESCRIPTIONS
                     (ID INT PRIMARY KEY     NOT NULL,
                     DESCRIPTION     TEXT    NOT NULL);'''
+
+
+def _parse_position(position, cur):
+    curr_pos = {
+        "id": position[0],
+        "owner_id": position[1],
+        "position_link": position[2],
+        "company_name": position[3],
+        "position_name": position[4],
+        "company_image": position[5],
+        "start_date": position[6],
+        "change_date": position[7],
+
+        "description": cur.execute(f"SELECT DESCRIPTION FROM DESCRIPTIONS WHERE ID={position[0]}")
+        .fetchall()[0][0]
+    }
+    stages = cur.execute(f"SELECT * FROM INTERVIEWSTAGES WHERE POSITIONID={position[0]}").fetchall()
+    stages.sort(key=lambda x: x[2])
+    stages = map(lambda x: {'stage_id': x[0], 'type': x[3], "status": x[4], 'comment': x[5], "date": x[6]}, stages)
+    curr_pos['interview_stages'] = list(stages)
+    return curr_pos
 
 
 class SqlServer:
@@ -66,24 +86,6 @@ class SqlServer:
             r_id = 0
         return r_id
 
-    def _parse_position(self, position, cur):
-        curr_pos = {
-            "id": position[0],
-            "owner_id": position[1],
-            "position_link": position[2],
-            "start_date": position[3],
-            "change_date": position[4],
-            "company_name": position[5],
-            "position_name": position[6],
-            "description": cur.execute(f"SELECT DESCRIPTION FROM DESCRIPTIONS WHERE ID={position[8]}")
-            .fetchall()[0][0]
-        }
-        stages = cur.execute(f"SELECT * FROM INTERVIEWSTAGES WHERE POSITIONID={position[7]}").fetchall()
-        stages.sort(key=lambda x: x[2])
-        stages = map(lambda x: {'stage_id': x[0], 'type': x[3], "status": x[4], 'comment': x[5], "date": x[6]}, stages)
-        curr_pos['interview_stages'] = list(stages)
-        return curr_pos
-
     def _delete_description_by_description_id(self, description_id):
         conn = self.connect()
         cur = conn.cursor()
@@ -98,13 +100,32 @@ class SqlServer:
         conn.commit()
         conn.close()
 
+    def _add_description(self, position_id, description_text):
+        conn = self.connect()
+        cur = conn.cursor()
+        description = (position_id, description_text)
+        insert_into_description = f"INSERT INTO DESCRIPTIONS (ID, DESCRIPTION) VALUES (?,?);"
+        cur.execute(insert_into_description, description)
+        conn.commit()
+        conn.close()
+
+    def _add_stages(self, position_id, interview_stages):
+        conn = self.connect()
+        cur = conn.cursor()
+        insert_into_interview_stages = f"INSERT INTO INTERVIEWSTAGES (POSITIONID, NUMBERINORDER, INTERVIEWTYPE, " \
+                                       f"INTERVIEWSTATUS, COMMENT, DATE) VALUES (?,?,?,?,?,?);"
+        for i in range(len(interview_stages)):
+            interview_stage = (position_id, i, interview_stages[i]["type"], interview_stages[i]["status"],
+                               interview_stages[i]["comment"], interview_stages[i]["date"])
+            cur.execute(insert_into_interview_stages, interview_stage)
+        conn.commit()
+        conn.close()
+
     def delete_position_by_id(self, position_id):
         conn = self.connect()
         cur = conn.cursor()
-        cur.execute(f"SELECT * FROM POSITIONS WHERE ID={position_id}")
-        position = cur.fetchall()[0]
-        self._delete_description_by_description_id(position[8])
-        self._delete_stages_by_position_id(position[7])
+        self._delete_description_by_description_id(position_id)
+        self._delete_stages_by_position_id(position_id)
         cur.execute(f"DELETE FROM POSITIONS WHERE ID={position_id}")
         conn.commit()
         conn.close()
@@ -116,7 +137,7 @@ class SqlServer:
         positions = cur.fetchall()
         result = []
         for position in positions:
-            result.append(self._parse_position(position, cur))
+            result.append(_parse_position(position, cur))
         conn.close()
         return result
 
@@ -125,44 +146,35 @@ class SqlServer:
         cur = conn.cursor()
         cur.execute(f"SELECT * FROM POSITIONS WHERE ID={position_id}")
         position = cur.fetchall()[0]
-        position = self._parse_position(position, cur)
+        position = _parse_position(position, cur)
         conn.close()
         return position
 
     def change_position(self, position_id, **kwargs):
         result = -1
         try:
-            conn = self.connect()
-            cur = conn.cursor()
-            cur.execute(f"SELECT * FROM POSITIONS WHERE ID={position_id}")
-            position_unparsed = cur.fetchall()[0]
-            position = self._parse_position(position_unparsed, cur)
-            start_date = position['start_date']
-            change_date = datetime.date.today()
-            position_id = position['id']
-            description_id = position_unparsed[8]
-            interview_id = position_unparsed[7]
+            change_date = datetime.datetime.today().timestamp()
             description_text = kwargs["description"]
             interview_stages = kwargs["interview_stages"]
-            position = (position_id, kwargs["owner_id"], kwargs["position_link"], start_date, change_date,
-                        kwargs["company_name"], kwargs["position_name"], interview_id, description_id)
+            position = (kwargs["position_link"], kwargs["company_name"], kwargs["position_name"],
+                        kwargs["company_image"], change_date, position_id)
 
-            self.delete_position_by_id(position_id)
+            self._delete_description_by_description_id(position_id)
+            self._delete_stages_by_position_id(position_id)
 
-            description = (description_id, description_text)
+            self._add_description(position_id, description_text)
+            self._add_stages(position_id, interview_stages)
 
-            insert_into_positions = f"INSERT INTO POSITIONS (ID, OWNERID, POSITIONLINK, STARTDATE, CHANGEDATE," \
-                                    f" COMPANYNAME, POSITIONNAME, INTERVIEWID, DESCCRIPTIONID) " \
-                                    f"VALUES (?,?,?,?,?,?,?,?,?);"
-            cur.execute(insert_into_positions, position)
-            insert_into_description = f"INSERT INTO DESCRIPTIONS (ID, DESCRIPTION) VALUES (?,?);"
-            cur.execute(insert_into_description, description)
-            insert_into_interview_stages = f"INSERT INTO INTERVIEWSTAGES (POSITIONID, NUMBERINORDER, INTERVIEWTYPE, " \
-                                           f"INTERVIEWSTATUS, COMMENT, DATE) VALUES (?,?,?,?,?,?);"
-            for i in range(len(interview_stages)):
-                interview_stage = (interview_id, i, interview_stages[i]["type"], interview_stages[i]["status"],
-                                   interview_stages[i]["comment"], interview_stages[i]["date"])
-                cur.execute(insert_into_interview_stages, interview_stage)
+            conn = self.connect()
+            cur = conn.cursor()
+            update_position = '''UPDATE POSITIONS
+                                 SET POSITIONLINK = ? ,
+                                     COMPANYNAME = ? ,
+                                     POSITIONNAME = ? ,
+                                     COMPANYIMAGE = ? ,
+                                     CHANGEDATE = ? 
+                                 WHERE ID = ?'''
+            cur.execute(update_position, position)
             conn.commit()
             conn.close()
             result = position_id
@@ -172,38 +184,26 @@ class SqlServer:
 
         finally:
             return result
-
 
     def add_position(self, **kwargs):
         result = -1
         try:
-            start_date = datetime.date.today()
-            change_date = datetime.date.today()
+            start_date = datetime.datetime.now().timestamp()
+            change_date = datetime.datetime.now().timestamp()
             position_id = self._next_id("ID")
-            description_id = self._next_id("DESCCRIPTIONID")
-            interview_id = self._next_id("INTERVIEWID")
             description_text = kwargs["description"]
             interview_stages = kwargs["interview_stages"]
-            position = (position_id, kwargs["owner_id"], kwargs["position_link"], start_date, change_date,
-                        kwargs["company_name"], kwargs["position_name"], interview_id, description_id)
-
-            description = (description_id, description_text)
+            position = (position_id, kwargs["owner_id"], kwargs["position_link"], kwargs["company_name"],
+                        kwargs["position_name"], kwargs["company_image"], start_date, change_date)
+            self._add_description(position_id, description_text)
+            self._add_stages(position_id, interview_stages)
 
             conn = self.connect()
             cur = conn.cursor()
-
-            insert_into_positions = f"INSERT INTO POSITIONS (ID, OWNERID, POSITIONLINK, STARTDATE, CHANGEDATE," \
-                                    f" COMPANYNAME, POSITIONNAME, INTERVIEWID, DESCCRIPTIONID) " \
-                                    f"VALUES (?,?,?,?,?,?,?,?,?);"
+            insert_into_positions = f"INSERT INTO POSITIONS (ID, OWNERID, POSITIONLINK, COMPANYNAME, POSITIONNAME," \
+                                    f"COMPANYIMAGE, STARTDATE, CHANGEDATE) " \
+                                    f"VALUES (?,?,?,?,?,?,?,?);"
             cur.execute(insert_into_positions, position)
-            insert_into_description = f"INSERT INTO DESCRIPTIONS (ID, DESCRIPTION) VALUES (?,?);"
-            cur.execute(insert_into_description, description)
-            insert_into_interview_stages = f"INSERT INTO INTERVIEWSTAGES (POSITIONID, NUMBERINORDER, INTERVIEWTYPE, " \
-                                           f"INTERVIEWSTATUS, COMMENT, DATE) VALUES (?,?,?,?,?,?);"
-            for i in range(len(interview_stages)):
-                interview_stage = (interview_id, i, interview_stages[i]["type"], interview_stages[i]["status"],
-                                   interview_stages[i]["comment"], interview_stages[i]["date"])
-                cur.execute(insert_into_interview_stages, interview_stage)
             conn.commit()
             conn.close()
             result = position_id
@@ -211,31 +211,64 @@ class SqlServer:
             result = -1
         finally:
             return result
+
+    def get_stages_from_range(self, start_interval, end_interval, owner_id=1):
+        sql_request = '''SELECT POSITIONS.ID, INTERVIEWTYPE, INTERVIEWSTATUS, COMMENT, DATE
+                         FROM INTERVIEWSTAGES 
+                         JOIN POSITIONS 
+                         on POSITIONS.ID = INTERVIEWSTAGES.POSITIONID
+                         WHERE DATE >= ? AND DATE <= ? AND OWNERID = ?'''
+        con = self.connect()
+        cur = con.cursor()
+        cur.execute(sql_request, (start_interval, end_interval, owner_id))
+        stages = cur.fetchall()
+        result_stages = []
+        for stage in stages:
+            result_stages.append({
+                "position_id": stage[0],
+                "type": stage[1],
+                "status": stage[2],
+                "comment": stage[3],
+                "date": stage[4]
+            })
+        return result_stages
+
+    # def statistic_applications_last_six_months(self, owner_id):
+    #     today = datetime.date.today()
+    #     last_day_this_month_timestamp = datetime.date(today.y)
+
 
 
 # a = SqlServer(DB_NAME)
 # interview_stages = [
 #     {"type": 'phone',
 #      "comment": "It will be exacted!",
-#      "date": '2023-09-10'},
+#      "status": "exepted",
+#      "date": 1693526400},
 #     {"type": 'tech',
+#      "status": "exepted",
 #      "comment": "It will be exacted!",
-#      "date": '2023-09-15'},
+#      "date": 1693267200},
 #     {"type": 'hr',
+#      "status": "exepted",
 #      "comment": "It will be exacted!",
-#      "date": '2023-09-20'}
+#      "date": 1691625600}
 # ]
 # position = {
 #     'owner_id': 1,
 #     'position_link': 'google.com',
 #     'company_name': 'intel',
 #     'position_name': 'programmer',
+#     "company_image": "google",
 #     'description': 'it`s good position',
 #     'interview_stages': interview_stages
 #     }
-# # print(a.add_position(**position))
+# print(a.add_position(**position))
+# # print(a.delete_position_by_id(0))
 # result = a.get_positions()
-# print(result)
+# for row in result:
+#     print(row)
+# print(a.get_stages_from_range(1690848000, 1693353600))
 
 # conn = sqlite3.connect(DB_NAME)
 # conn.execute("DROP TABLE POSITIONS")

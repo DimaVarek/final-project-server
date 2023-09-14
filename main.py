@@ -31,6 +31,22 @@ def get_positions():
                        statusCode=200), 200
 
 
+@app.route('/positions', methods=['GET'])
+@cross_origin()
+def positions():
+    try:
+        positions = server.get_positions()
+        return jsonify(isError=False,
+                       data=positions,
+                       message="Success",
+                       statusCode=200), 200
+    except:
+        return jsonify(isError=True,
+                       data={},
+                       message="Error",
+                       statusCode=200), 200
+
+
 @app.route('/add_position', methods=['POST'])
 @cross_origin()
 def add_position():
@@ -46,6 +62,48 @@ def add_position():
                        index=-1,
                        message="Error",
                        statusCode=200), 200
+
+
+@app.route('/position/<position_id>', methods=['GET', 'PUT', "DELETE"])
+@cross_origin()
+def position(position_id):
+    if request.method == 'GET':
+        try:
+            position = server.get_position_by_id(position_id)
+            return jsonify(isError=False,
+                           data=position,
+                           message="Success",
+                           statusCode=200), 200
+        except:
+            return jsonify(isError=True,
+                           data={},
+                           message="Error",
+                           statusCode=200), 200
+    elif request.method == 'PUT':
+        try:
+            data = request.json
+            index = server.change_position(position_id, **data)
+            return jsonify(isError=False,
+                           data={"index": index},
+                           message="Success",
+                           statusCode=200), 200
+        except:
+            return jsonify(isError=True,
+                           index=-1,
+                           message="Error",
+                           statusCode=200), 200
+    elif request.method == 'DELETE':
+        try:
+            server.delete_position_by_id(position_id)
+            return jsonify(isError=False,
+                           data={},
+                           message="Success",
+                           statusCode=200), 200
+        except:
+            return jsonify(isError=True,
+                           data={},
+                           message="Error",
+                           statusCode=200), 200
 
 
 @app.route('/change_position/<position_id>', methods=['POST'])
@@ -102,7 +160,6 @@ def delete_position_by_id(position_id):
 def parse_vacancy():
     try:
         data = request.json
-        print(data)
         vacancy = get_vacancy(data['url'])
         return jsonify(isError=False,
                        data=vacancy,
@@ -112,3 +169,21 @@ def parse_vacancy():
         return jsonify(isError=True,
                        message="Error",
                        statusCode=200), 200
+
+
+@app.route('/get_stages_by_period', methods=['GET'])
+@cross_origin()
+def get_stages_by_period():
+    try:
+        start_interval = int(request.args['start_interval'])
+        end_interval = int(request.args['end_interval'])
+        stages = server.get_stages_from_range(start_interval, end_interval)
+        return jsonify(isError=False,
+                       data=stages,
+                       message="Success",
+                       statusCode=200), 200
+    except:
+        return jsonify(isError=True,
+                       message="Error",
+                       statusCode=200), 200
+
