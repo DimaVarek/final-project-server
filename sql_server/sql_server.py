@@ -158,8 +158,14 @@ class SqlServer:
             change_date = datetime.datetime.today().timestamp()
             description_text = kwargs["description"]
             interview_stages = kwargs["interview_stages"]
+            # fast fix - must change in normal way later
+            try:
+                image = kwargs["company_image"]
+            except:
+                image = ""
+            # finish of fast fix
             position = (kwargs["position_link"], kwargs["company_name"], kwargs["position_name"],
-                        kwargs["company_image"], change_date, position_id)
+                        image, change_date, position_id)
 
             self._delete_description_by_description_id(position_id)
             self._delete_stages_by_position_id(position_id)
@@ -195,8 +201,14 @@ class SqlServer:
             position_id = self._next_id("ID")
             description_text = kwargs["description"]
             interview_stages = kwargs["interview_stages"]
+            # fast fix - must change in normal way later
+            try:
+                image = kwargs["company_image"]
+            except:
+                image = ""
+            # finish of fast fix
             position = (position_id, kwargs["owner_id"], kwargs["position_link"], kwargs["company_name"],
-                        kwargs["position_name"], kwargs["company_image"], start_date, change_date)
+                        kwargs["position_name"], image, start_date, change_date)
             self._add_description(position_id, description_text)
             self._add_stages(position_id, interview_stages)
 
