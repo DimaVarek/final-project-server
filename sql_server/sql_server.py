@@ -1,8 +1,7 @@
 import datetime
 import sqlite3
-import sys
-# sys.path.append("date_worker")
-from date_worker.date_worker import get_last_six_months
+from date_worker.date_worker import get_last_six_months, get_last_four_week, get_last_week
+from config_data import STATUS_STAGE, TYPE_STAGE
 DB_NAME = "position_db.db"
 CREATE_POSITIONS = '''CREATE TABLE POSITIONS
                     (ID INT PRIMARY KEY     NOT NULL,
@@ -119,7 +118,7 @@ class SqlServer:
                                        f"INTERVIEWSTATUS, COMMENT, DATE) VALUES (?,?,?,?,?,?);"
         for i in range(len(interview_stages)):
             interview_stage = (position_id, i, interview_stages[i]["type"], interview_stages[i]["status"],
-                               interview_stages[i]["comment"], interview_stages[i]["date"])
+                               interview_stages[i]["comment"], int(interview_stages[i]["date"]))
             cur.execute(insert_into_interview_stages, interview_stage)
         conn.commit()
         conn.close()
@@ -234,6 +233,7 @@ class SqlServer:
                 "comment": stage[3],
                 "date": stage[4]
             })
+        con.close()
         return result_stages
 
     def statistic_applications_last_six_months(self, owner_id=1):
@@ -250,13 +250,63 @@ class SqlServer:
                 'month': stats_dates[month_id][0],
                 'applications': cur.fetchall()[0][0]
             })
-
+        con.close()
         return last_six_months_stat
+
+    def get_applications_made_last_month(self, owner_id=1):
+        con = self.connect()
+        cur = con.cursor()
+        last_four_week_stat = []
+        sql_request = '''SELECT COUNT(*) FROM POSITIONS
+                         WHERE STARTDATE >= ? AND STARTDATE <= ? AND OWNERID = ?'''
+        stats_dates = get_last_four_week()
+        for week_id in range(len(stats_dates)):
+            cur.execute(sql_request, (stats_dates[week_id][1], stats_dates[week_id][2], owner_id))
+            last_four_week_stat.append({
+                # 'id': week_id + 1,
+                'week': stats_dates[week_id][0],
+                'applications': cur.fetchall()[0][0]
+            })
+        con.close()
+        return last_four_week_stat
+
+    def get_applications_made_last_week(self, owner_id=1):
+        con = self.connect()
+        cur = con.cursor()
+        last_four_week_stat = []
+        sql_request = '''SELECT COUNT(*) FROM POSITIONS
+                         WHERE STARTDATE >= ? AND STARTDATE <= ? AND OWNERID = ?'''
+        stats_dates = get_last_week()
+        for day_id in range(len(stats_dates)):
+            cur.execute(sql_request, (stats_dates[day_id][1], stats_dates[day_id][2], owner_id))
+            last_four_week_stat.append({
+                # 'id': week_id + 1,
+                'day': stats_dates[day_id][0],
+                'applications': cur.fetchall()[0][0]
+            })
+        con.close()
+        return last_four_week_stat
+
+    def total_positive_result_by_each_stage(self, owner_id=1):
+        con = self.connect()
+        cur = con.cursor()
+        stages_state = []
+        sql_request = '''SELECT COUNT(*) FROM INTERVIEWSTAGES 
+                         JOIN POSITIONs
+                         on POSITIONS.ID = INTERVIEWSTAGES.POSITIONID 
+                         WHERE OWNERID = ? AND INTERVIEWTYPE = ? AND INTERVIEWSTATUS = ?'''
+        for interview_type in TYPE_STAGE:
+            cur.execute(sql_request, (owner_id, interview_type, STATUS_STAGE['Accepted']))
+            stages_state.append({'stage': interview_type, 'applications': cur.fetchall()[0][0]})
+        con.close()
+        return stages_state
+
 
 
 
 
 # a = SqlServer(DB_NAME)
+# print(a.total_positive_result_by_each_stage())
 # interview_stages = [
 #     {"type": 'phone',
 #      "comment": "It will be exacted!",

@@ -135,7 +135,6 @@ def get_position_by_id(position_id):
                        statusCode=200), 200
     except:
         return jsonify(isError=True,
-                       data={},
                        message="Error",
                        statusCode=200), 200
 
@@ -151,7 +150,6 @@ def delete_position_by_id(position_id):
                        statusCode=200), 200
     except:
         return jsonify(isError=True,
-                       data={},
                        message="Error",
                        statusCode=200), 200
 
@@ -201,6 +199,12 @@ def statistic():
         else:
             if stat_type == 'application_last_six_months':
                 stat = server.statistic_applications_last_six_months()
+            elif stat_type == 'application_last_four_week':
+                stat = server.get_applications_made_last_month()
+            elif stat_type == 'application_last_week':
+                stat = server.get_applications_made_last_week()
+            elif stat_type == 'total_positive_result_by_each_stage':
+                stat = server.total_positive_result_by_each_stage()
         return jsonify(isError=False,
                        data=stat,
                        message="Success",

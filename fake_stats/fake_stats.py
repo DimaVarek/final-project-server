@@ -35,5 +35,79 @@ FAKE_STATS = {
             'month': "September",
             'applications': 90,
         },
+    ],
+    "application_last_four_week": [
+        {
+            'week': "week1",
+            'applications': 30
+        },
+        {
+            'week': "week2",
+            'applications': 15
+        },
+        {
+            'week': "week3",
+            'applications': 23
+        },
+        {
+            'week': "week4",
+            'applications': 22
+        },
+    ],
+    'application_last_week': [
+        {
+            'day': "Sun",
+            'applications': 5
+        },
+        {
+            'day': "Mon",
+            'applications': 2
+        },
+        {
+            'day': "Tue",
+            'applications': 3
+        },
+        {
+            'day': "Wed",
+            'applications': 4
+        },
+        {
+            'day': "Thu",
+            'applications': 1
+        },
+        {
+            'day': "Fri",
+            'applications': 6
+        },
+        {
+            'day': "Sat",
+            'applications': 1
+        }
+    ],
+    'total_positive_result_by_each_stage': [
+        {
+            'stage': "Phone",
+            'applications': 512
+        },
+        {
+            'stage': "Application",
+            'applications': 48
+        },
+        {
+            'stage': "Manager",
+            'applications': 20
+        },
+        {
+            'stage': "HR",
+            'applications': 9
+        },
+        {
+            'stage': "Technical",
+            'applications': 6
+        },
+        {
+            'stage': "Offer",
+            'applications': 3
+        }
     ]
 }
