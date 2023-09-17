@@ -88,46 +88,30 @@ class SqlServer:
             r_id = 0
         return r_id
 
-    def _delete_description_by_description_id(self, description_id):
-        conn = self.connect()
-        cur = conn.cursor()
+    def _delete_description_by_description_id(self, description_id, cur):
         cur.execute(f"DELETE FROM DESCRIPTIONS WHERE ID={description_id}")
-        conn.commit()
-        conn.close()
 
-    def _delete_stages_by_position_id(self, position_id):
-        conn = self.connect()
-        cur = conn.cursor()
+    def _delete_stages_by_position_id(self, position_id, cur):
         cur.execute(f"DELETE FROM INTERVIEWSTAGES WHERE POSITIONID={position_id}")
-        conn.commit()
-        conn.close()
 
-    def _add_description(self, position_id, description_text):
-        conn = self.connect()
-        cur = conn.cursor()
+    def _add_description(self, position_id, description_text, cur):
         description = (position_id, description_text)
         insert_into_description = f"INSERT INTO DESCRIPTIONS (ID, DESCRIPTION) VALUES (?,?);"
         cur.execute(insert_into_description, description)
-        conn.commit()
-        conn.close()
 
-    def _add_stages(self, position_id, interview_stages):
-        conn = self.connect()
-        cur = conn.cursor()
+    def _add_stages(self, position_id, interview_stages, cur):
         insert_into_interview_stages = f"INSERT INTO INTERVIEWSTAGES (POSITIONID, NUMBERINORDER, INTERVIEWTYPE, " \
                                        f"INTERVIEWSTATUS, COMMENT, DATE) VALUES (?,?,?,?,?,?);"
         for i in range(len(interview_stages)):
             interview_stage = (position_id, i, interview_stages[i]["type"], interview_stages[i]["status"],
                                interview_stages[i]["comment"], int(interview_stages[i]["date"]))
             cur.execute(insert_into_interview_stages, interview_stage)
-        conn.commit()
-        conn.close()
 
     def delete_position_by_id(self, position_id):
         conn = self.connect()
         cur = conn.cursor()
-        self._delete_description_by_description_id(position_id)
-        self._delete_stages_by_position_id(position_id)
+        self._delete_description_by_description_id(position_id, cur)
+        self._delete_stages_by_position_id(position_id, cur)
         cur.execute(f"DELETE FROM POSITIONS WHERE ID={position_id}")
         conn.commit()
         conn.close()
@@ -153,78 +137,67 @@ class SqlServer:
         return position
 
     def change_position(self, position_id, **kwargs):
-        result = -1
+        conn = self.connect()
+        cur = conn.cursor()
+        change_date = datetime.datetime.today().timestamp()
+        description_text = kwargs["description"]
+        interview_stages = kwargs["interview_stages"]
+        # fast fix - must change in normal way later
         try:
-            change_date = datetime.datetime.today().timestamp()
-            description_text = kwargs["description"]
-            interview_stages = kwargs["interview_stages"]
-            # fast fix - must change in normal way later
-            try:
-                image = kwargs["company_image"]
-            except:
-                image = ""
-            # finish of fast fix
-            position = (kwargs["position_link"], kwargs["company_name"], kwargs["position_name"],
-                        image, change_date, position_id)
+            image = kwargs["company_image"]
+        except:
+            image = ""
+        # finish of fast fix
+        position = (kwargs["position_link"], kwargs["company_name"], kwargs["position_name"],
+                    image, change_date, position_id)
 
-            self._delete_description_by_description_id(position_id)
-            self._delete_stages_by_position_id(position_id)
+        self._delete_description_by_description_id(position_id, cur)
+        self._delete_stages_by_position_id(position_id, cur)
 
-            self._add_description(position_id, description_text)
-            self._add_stages(position_id, interview_stages)
-
-            conn = self.connect()
-            cur = conn.cursor()
-            update_position = '''UPDATE POSITIONS
-                                 SET POSITIONLINK = ? ,
-                                     COMPANYNAME = ? ,
-                                     POSITIONNAME = ? ,
-                                     COMPANYIMAGE = ? ,
-                                     CHANGEDATE = ? 
-                                 WHERE ID = ?'''
-            cur.execute(update_position, position)
-            conn.commit()
-            conn.close()
-            result = position_id
-
-        except Exception:
-            result = -1
-
-        finally:
-            return result
+        self._add_description(position_id, description_text, cur)
+        self._add_stages(position_id, interview_stages, cur)
+        update_position = '''UPDATE POSITIONS
+                             SET POSITIONLINK = ? ,
+                                 COMPANYNAME = ? ,
+                                 POSITIONNAME = ? ,
+                                 COMPANYIMAGE = ? ,
+                                 CHANGEDATE = ? 
+                             WHERE ID = ?'''
+        cur.execute(update_position, position)
+        conn.commit()
+        conn.close()
+        result = position_id
+        return result
 
     def add_position(self, **kwargs):
-        result = -1
+        start_date = datetime.datetime.now().timestamp()
+        change_date = datetime.datetime.now().timestamp()
+        position_id = self._next_id("ID")
+        description_text = kwargs["description"]
+        interview_stages = kwargs["interview_stages"]
+        # fast fix - must change in normal way later
         try:
-            start_date = datetime.datetime.now().timestamp()
-            change_date = datetime.datetime.now().timestamp()
-            position_id = self._next_id("ID")
-            description_text = kwargs["description"]
-            interview_stages = kwargs["interview_stages"]
-            # fast fix - must change in normal way later
-            try:
-                image = kwargs["company_image"]
-            except:
-                image = ""
-            # finish of fast fix
-            position = (position_id, kwargs["owner_id"], kwargs["position_link"], kwargs["company_name"],
-                        kwargs["position_name"], image, start_date, change_date)
-            self._add_description(position_id, description_text)
-            self._add_stages(position_id, interview_stages)
+            image = kwargs["company_image"]
+        except:
+            image = ""
+        # finish of fast fix
+        conn = self.connect()
+        cur = conn.cursor()
+        position = (position_id, kwargs["owner_id"], kwargs["position_link"], kwargs["company_name"],
+                    kwargs["position_name"], image, start_date, change_date)
+        self._add_description(position_id, description_text, cur)
+        self._add_stages(position_id, interview_stages, cur)
 
-            conn = self.connect()
-            cur = conn.cursor()
-            insert_into_positions = f"INSERT INTO POSITIONS (ID, OWNERID, POSITIONLINK, COMPANYNAME, POSITIONNAME," \
-                                    f"COMPANYIMAGE, STARTDATE, CHANGEDATE) " \
-                                    f"VALUES (?,?,?,?,?,?,?,?);"
-            cur.execute(insert_into_positions, position)
-            conn.commit()
-            conn.close()
-            result = position_id
-        except Exception:
-            result = -1
-        finally:
-            return result
+
+        insert_into_positions = f"INSERT INTO POSITIONS (ID, OWNERID, POSITIONLINK, COMPANYNAME, POSITIONNAME," \
+                                f"COMPANYIMAGE, STARTDATE, CHANGEDATE) " \
+                                f"VALUES (?,?,?,?,?,?,?,?);"
+        cur.execute(insert_into_positions, position)
+        conn.commit()
+        conn.close()
+        result = position_id
+
+        return result
 
     def get_stages_from_range(self, start_interval, end_interval, owner_id=1):
         sql_request = '''SELECT POSITIONS.ID, INTERVIEWTYPE, INTERVIEWSTATUS, 
@@ -320,7 +293,7 @@ class SqlServer:
 
 
 
-a = SqlServer(DB_NAME)
+# a = SqlServer(DB_NAME)
 # print(a.total_positive_result_by_each_stage())
 # interview_stages = [
 #     {"type": 'phone',
@@ -350,7 +323,7 @@ a = SqlServer(DB_NAME)
 # result = a.get_positions()
 # for row in result:
 #     print(row)
-print(a.get_stages_from_range(1690848000, 1693353600))
+# print(a.get_stages_from_range(1690848000, 1693353600))
 
 # conn = sqlite3.connect(DB_NAME)
 # conn.execute("DROP TABLE POSITIONS")

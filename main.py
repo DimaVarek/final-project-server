@@ -60,7 +60,7 @@ def add_position():
                        statusCode=200), 200
     except:
         return jsonify(isError=True,
-                       index=-1,
+                       data={},
                        message="Error",
                        statusCode=200), 200
 
@@ -119,7 +119,7 @@ def change_position(position_id):
                        statusCode=200), 200
     except:
         return jsonify(isError=True,
-                       index=-1,
+                       data={},
                        message="Error",
                        statusCode=200), 200
 
