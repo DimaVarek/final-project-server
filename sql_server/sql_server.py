@@ -227,7 +227,8 @@ class SqlServer:
             return result
 
     def get_stages_from_range(self, start_interval, end_interval, owner_id=1):
-        sql_request = '''SELECT POSITIONS.ID, INTERVIEWTYPE, INTERVIEWSTATUS, COMMENT, DATE
+        sql_request = '''SELECT POSITIONS.ID, INTERVIEWTYPE, INTERVIEWSTATUS, 
+                                COMMENT, DATE, COMPANYNAME, POSITIONNAME
                          FROM INTERVIEWSTAGES 
                          JOIN POSITIONS 
                          on POSITIONS.ID = INTERVIEWSTAGES.POSITIONID
@@ -243,7 +244,9 @@ class SqlServer:
                 "type": stage[1],
                 "status": stage[2],
                 "comment": stage[3],
-                "date": stage[4]
+                "date": stage[4],
+                "company_name": stage[5],
+                "position_name": stage[6]
             })
         con.close()
         return result_stages
@@ -317,7 +320,7 @@ class SqlServer:
 
 
 
-# a = SqlServer(DB_NAME)
+a = SqlServer(DB_NAME)
 # print(a.total_positive_result_by_each_stage())
 # interview_stages = [
 #     {"type": 'phone',
@@ -347,7 +350,7 @@ class SqlServer:
 # result = a.get_positions()
 # for row in result:
 #     print(row)
-# print(a.get_stages_from_range(1690848000, 1693353600))
+print(a.get_stages_from_range(1690848000, 1693353600))
 
 # conn = sqlite3.connect(DB_NAME)
 # conn.execute("DROP TABLE POSITIONS")
